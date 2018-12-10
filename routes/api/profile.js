@@ -22,9 +22,8 @@ router.get('/test', (req, res) => {
 // access  Private
 router.get('/', passport.authenticate('jwt', { session: false }), (req, res) => {
   const errors = {}
-
   Profile.findOne({ user: req.user.id })
-    .populate('user', ['name', 'avatar'])
+    .populate('user', ['username', 'avatar', 'type'])
     .then(profile => {
       if (!profile) {
         errors.noprofile = 'There is no profile for this user'
@@ -34,9 +33,43 @@ router.get('/', passport.authenticate('jwt', { session: false }), (req, res) => 
     })
     .catch(err => res.status(404).json(err))
 })
+// @route  POST api/profile/
+// @desc   Registeres a users profile
+// access  Private
+router.post('/', passport.authenticate('jwt', { session: false }), async (req, res, next) => {
+  const errors = {}
+  const { username, dateOfBirth, avatar, type } = req.body
+
+  const foundProfile = await Profile.findOne({ user: req.user.id })
+  if (foundProfile) {
+    return res.status(403).json({ error: 'Profile has already been created'});
+  }
+
+  const { user, club, avatar, nacionality, handicap, bio } = req.body
+
+  const newProfile = new Profile({
+    user,
+    club,
+    avatar,
+    nacionality,
+    handicap,
+    bio
+  })
+
+  console.log(newProfile)
+  await newProfile.save();
+})
 // @route  Get api/profile/all/
 // @desc   get all profiles
 // @access Public
+router.put('/edit', passport.authenticate('jwt', { session: false }), (req, res) => {
+  const errors = {}
+  const { user, club, avatar, nacionality, handicap, bio } = req.body
+  Profile.update({'user': req.user.id }, { user, club, avatar, nacionality, handicap, bio  }, (err) => console.log(err))
+})
+// @route  POST api/profile/
+// @desc   Registeres a users profile
+// access  Private
 router.get('/all', (req, res) => {
   const errors = {}
   Profile.find()
@@ -82,43 +115,20 @@ router.get('/user/:user_id', (req, res) => {
     })
     .catch(err => res.status(404).json({profile: 'There is no profile for this user'}))
 })
-// @route  POST api/profile/
-// @desc   Create or edit users profile
+// @route  DELETE api/profile/education/:edu_id
+// @desc   Delete education from profile
 // access  Private
-router.post('/', passport.authenticate('jwt', { session: false }), (req, res) => {
-  const { errors, isValid } = validateProfileInput(req.body)
-  const { user, club, avatar, nacionality, handicap, bio } = req.body
-
-  // Check Validation
-  if (!isValid) {
-    // Return any errors with 400 status
-    return res.status(400).json(errors)
-  }
+router.delete('/education/:edu_id', passport.authenticate('jwt', { session: false }), (req, res) => {
   Profile.findOne({ user: req.user.id }).then(profile => {
-    if (profile) {
-      // Update
-      Profile.findOneAndUpdate(
-        { user: req.user.id },
-        { $set: profileFields },
-        { new: true }
-      ).then(profile => res.json(profile))
-    } else {
-        // Create
-        const newProfile = new Profile({
-          user,
-          club,
-          avatar,
-          nacionality,
-          handicap,
-          bio
-        })
-        console.log('new: ', newProfile)
-        // Save Profile
-        newProfile.save().then(profile => res.json(profile))
-      }
-    })
+    // Get remove index
+    const removeIndex = profile.education.map(item => item.id).indexOf(req.params.exp_id)
+    // Splice out of array
+    profile.education.splice(removeIndex, 1)
+    // save
+    profile.save().then(profile => res.json(profile))
+  })
+    .catch(err => res.status(404).json(err))
 })
-
 // @route  DELETE api/profile/
 // @desc   Delete user and profile
 // access  Private
