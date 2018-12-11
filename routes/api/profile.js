@@ -38,7 +38,6 @@ router.get('/', passport.authenticate('jwt', { session: false }), (req, res) => 
 // access  Private
 router.post('/', passport.authenticate('jwt', { session: false }), async (req, res, next) => {
   const errors = {}
-  const { username, dateOfBirth, avatar, type } = req.body
 
   const foundProfile = await Profile.findOne({ user: req.user.id })
   if (foundProfile) {
